@@ -1,27 +1,30 @@
 import streamlit as st
-import database as db
-import ai_logic as ai
+import requests
 
-st.set_page_config(page_title="Generator Testów AI", page_icon="🎓", layout="wide")
+API_URL = "http://127.0.0.1:8000"
 
-db.init_db()
+st.set_page_config(page_title="Generator Testów (Klient)", page_icon="🖥️", layout="wide")
 
 with st.sidebar:
-    st.header("📜 Historia")
+    st.header("📜 Historia (z API)")
     if st.button("Odśwież"):
         st.rerun()
         
-    history_data = db.get_history()
-    if not history_data:
-        st.write("Pusto...")
-    else:
-        for item in history_data:
-            with st.expander(f"{item[2]} - {item[1]}"):
-                st.download_button("Pobierz .txt", item[3], file_name=f"test_{item[0]}.txt")
-                st.write(item[3])
+    try:
+        # Frontend pyta API o historię! Nie dotyka pliku .db
+        response = requests.get(f"{API_URL}/history")
+        if response.status_code == 200:
+            history_data = response.json()
+            for item in history_data:
+                # item = [id, filename, date, content]
+                with st.expander(f"{item[2]} - {item[1]}"):
+                    st.write(item[3])
+        else:
+            st.error("Błąd pobierania historii")
+    except:
+        st.warning("Nie można połączyć z API (Historia niedostępna)")
 
-st.title("🎓 Generator Testów (Architecture v2)")
-st.write("Wgraj notatki, resztę zrobi **Python + OpenAI**.")
+st.title("🖥️ System Klient-Serwer (SQLite via API)")
 
 uploaded_file = st.file_uploader("Wybierz plik PDF", type=["pdf"])
 
@@ -29,17 +32,23 @@ if 'result' not in st.session_state:
     st.session_state.result = None
 
 if uploaded_file is not None:
-    if st.button("Generuj Test"):
-        with st.spinner('AI pracuje...'):
-            text = ai.get_text_from_pdf(uploaded_file)
-            
-            if len(text) > 10000: text = text[:10000]
-            
-            generated_content = ai.generate_test_ai(text)
-            st.session_state.result = generated_content
-            
-            db.save_to_db(uploaded_file.name, generated_content)
-            st.success("Zapisano w bazie!")
+    if st.button("🚀 Wyślij do API"):
+        with st.spinner('Przetwarzanie na serwerze...'):
+            try:
+                files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
+                
+                response = requests.post(f"{API_URL}/generate-test/", files=files)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    st.session_state.result = data["test_content"]
+                    st.success("Gotowe!")
+                    st.rerun() 
+                else:
+                    st.error(f"Błąd: {response.text}")
+                    
+            except Exception as e:
+                st.error(f"Serwer nie odpowiada: {e}")
 
 if st.session_state.result:
     st.markdown("---")
