@@ -15,38 +15,50 @@ def get_text_from_pdf(pdf_file):
         text += page.extract_text()
     return text
 
-def generate_test_ai(text):
+def generate_test_ai(text, count=5):
     if not api_key:
         return {"error": "Brak klucza API"}
     
     llm = ChatOpenAI(api_key=api_key, model_name="gpt-3.5-turbo")
     
     template = """
-    Jesteś asystentem edukacyjnym. Na podstawie podanego tekstu stwórz test wyboru.
-    ODPOWIEDZ TYLKO CZYSTYM KODEM JSON. Bez formatowania markdown (```json).
+    Jesteś profesjonalnym egzaminatorem. Na podstawie tekstu stwórz test sprawdzający wiedzę.
     
-    TEKST:
+    TEKST ŹRÓDŁOWY:
     {text}
     
-    WYMAGANIA FORMATU JSON:
-    Stwórz listę 3-5 pytań w takim formacie:
+    WYMAGANIA:
+    1. Stwórz DOKŁADNIE {count} pytań.
+    2. Postaraj się wymieszać typy pytań (większość jednokrotnego wyboru, ale dodaj też wielokrotny i otwarte).
+    3. Odpowiedz TYLKO czystym kodem JSON (bez ```json).
+
+    FORMAT JSON (Lista obiektów):
     [
       {{
-        "question": "Treść pytania?",
-        "options": ["Opcja A", "Opcja B", "Opcja C", "Opcja D"],
-        "correct_answer": "Opcja B"
+        "type": "single_choice",
+        "question": "Pytanie?",
+        "options": ["A", "B", "C", "D"],
+        "correct_answer": "A"
       }},
-      ...
+      {{
+        "type": "multiple_choice",
+        "question": "Wybierz wszystkie poprawne:",
+        "options": ["A", "B", "C", "D"],
+        "correct_answer": ["A", "C"]
+      }},
+      {{
+        "type": "open",
+        "question": "Pytanie otwarte?",
+        "correct_answer": "Wzorcowa odpowiedź"
+      }}
     ]
-    
-    Ważne: "correct_answer" musi być identyczne jak jedna z opcji.
     """
     
-    prompt = PromptTemplate(template=template, input_variables=["text"])
+    prompt = PromptTemplate(template=template, input_variables=["text", "count"])
     chain = prompt | llm
     
     try:
-        response = chain.invoke({"text": text})
+        response = chain.invoke({"text": text, "count": count})
         content = response.content.strip()
         
         if content.startswith("```json"):
@@ -54,8 +66,7 @@ def generate_test_ai(text):
         if content.endswith("```"):
             content = content[:-3]
             
-        quiz_data = json.loads(content)
-        return quiz_data
+        return json.loads(content)
         
     except Exception as e:
-        return [{"question": "Błąd generowania JSON", "options": [], "correct_answer": ""}]
+        return [{"type": "open", "question": "Błąd generowania. Spróbuj ponownie.", "correct_answer": ""}]

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, status
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, status, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pypdf import PdfReader
 from io import BytesIO
@@ -17,7 +17,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-app = FastAPI(title="Generator Testów API (JSON Version)")
+app = FastAPI(title="Generator Testów API (Interactive Only)")
 db.init_db()
 
 def verify_password(plain, hashed): return pwd_context.verify(plain, hashed)
@@ -59,7 +59,6 @@ def get_history(user: str = Depends(get_current_user)):
             content_json = json.loads(item[3])
         except:
             content_json = item[3]
-            
         clean_history.append({
             "id": item[0],
             "filename": item[1],
@@ -69,7 +68,11 @@ def get_history(user: str = Depends(get_current_user)):
     return clean_history
 
 @app.post("/generate-test/")
-async def generate_test(file: UploadFile = File(...), user: str = Depends(get_current_user)):
+async def generate_test(
+    file: UploadFile = File(...), 
+    question_count: int = Form(5), 
+    user: str = Depends(get_current_user)
+):
     if not file.filename.endswith(".pdf"): raise HTTPException(400, "Tylko PDF")
     
     try:
@@ -77,10 +80,9 @@ async def generate_test(file: UploadFile = File(...), user: str = Depends(get_cu
         pdf_reader = PdfReader(BytesIO(content))
         text = "".join([p.extract_text() for p in pdf_reader.pages])[:15000]
         
-        quiz_data = ai.generate_test_ai(text)
+        quiz_data = ai.generate_test_ai(text, question_count)
         
         quiz_json_string = json.dumps(quiz_data)
-        
         db.save_to_db(user, file.filename, quiz_json_string)
         
         return {"filename": file.filename, "quiz_data": quiz_data}
