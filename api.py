@@ -71,6 +71,7 @@ def get_history(user: str = Depends(get_current_user)):
 async def generate_test(
     file: UploadFile = File(...), 
     question_count: int = Form(5), 
+    test_type: str = Form("mieszane"), 
     user: str = Depends(get_current_user)
 ):
     if not file.filename.endswith(".pdf"): raise HTTPException(400, "Tylko PDF")
@@ -78,9 +79,14 @@ async def generate_test(
     try:
         content = await file.read()
         pdf_reader = PdfReader(BytesIO(content))
-        text = "".join([p.extract_text() for p in pdf_reader.pages])[:15000]
+        text_with_pages = ""
+        for i, p in enumerate(pdf_reader.pages):
+            page_text = p.extract_text()
+            if page_text:
+                text_with_pages += f"\n[Strona {i+1}]\n{page_text}"
+        text = text_with_pages[:15000]
         
-        quiz_data = ai.generate_test_ai(text, question_count)
+        quiz_data = ai.generate_test_ai(text, question_count, test_type)
         
         quiz_json_string = json.dumps(quiz_data)
         db.save_to_db(user, file.filename, quiz_json_string)

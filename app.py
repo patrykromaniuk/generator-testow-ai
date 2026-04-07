@@ -1,14 +1,24 @@
 import streamlit as st
 import requests
+import extra_streamlit_components as stx
+import time
 
 API_URL = "http://127.0.0.1:8000"
 
 st.set_page_config(page_title="Interaktywny Quiz AI", page_icon="🎓", layout="wide")
 
-if 'token' not in st.session_state: st.session_state.token = None
+# Uruchomienie menedżera ciasteczek
+cookie_manager = stx.CookieManager()
+
+# Próba odczytania zapisanych danych z przeglądarki
+saved_token = cookie_manager.get('token')
+saved_username = cookie_manager.get('username')
+
+# Konfiguracja pamięci podręcznej (bierzemy z ciastek, jeśli tam są)
+if 'token' not in st.session_state: st.session_state.token = saved_token
+if 'username' not in st.session_state: st.session_state.username = saved_username
 if 'quiz_data' not in st.session_state: st.session_state.quiz_data = None
 if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
-if 'username' not in st.session_state: st.session_state.username = None
 
 def login(username, password):
     try:
@@ -27,6 +37,7 @@ def register(u, p):
         res = requests.post(f"{API_URL}/register", data={"username": u, "password": p})
         if res.status_code == 200:
             st.success("Zarejestrowano pomyślnie! Możesz się zalogować.")
+            login(u,p)
         else:
             st.error("Błąd: Użytkownik już istnieje lub błąd danych.")
     except Exception as e:
@@ -38,7 +49,7 @@ def logout():
     st.rerun()
 
 if not st.session_state.token:
-    st.title("🔐 Panel Studenta")
+    st.title("Panel Studenta")
     
     tab1, tab2 = st.tabs(["Logowanie", "Rejestracja"])
     
@@ -71,7 +82,7 @@ else:
         st.write(f"Zalogowany: **{st.session_state.username}**")
         if st.button("Wyloguj"): logout()
         st.divider()
-        st.header("📜 Historia")
+        st.header("Historia")
         if st.button("Odśwież"): st.rerun()
         
         headers = {"Authorization": f"Bearer {st.session_state.token}"}
@@ -84,16 +95,29 @@ else:
                         st.session_state.user_answers = {}
         except: st.write("Błąd historii")
 
-    st.title("🎓 Interaktywny Quiz z Notatek")
+    st.title("Interaktywny Quiz z Notatek")
     
-    uploaded_file = st.file_uploader("Wgraj wykład (PDF)", type=["pdf"])
-    
-    questions_count = st.slider("Liczba pytań do wygenerowania:", min_value=3, max_value=20, value=5)
+    st.markdown("Konfiguracja testu")
+    col1, col2 = st.columns(2)
+    with col1:
+        uploaded_file = st.file_uploader("Wgraj wykład (PDF)", type=["pdf"])
+    with col2:
+        questions_count = st.slider("Liczba pytań do wygenerowania:", min_value=3, max_value=20, value=5)
+        test_type_ui = st.radio("Wybierz rodzaj pytań:", ["Mieszane", "Tylko jednokrotny wybór", "Tylko wielokrotny wybór"])
 
-    if uploaded_file and st.button("🚀 Generuj Quiz"):
-        with st.spinner(f'AI generuje test ({questions_count} pytań)...'):
+    type_mapping = {
+        "Mieszane": "mieszane", 
+        "Tylko jednokrotny wybór": "jednokrotny", 
+        "Tylko wielokrotny wybór": "wielokrotny"
+    }
+
+    if uploaded_file and st.button("Generuj Quiz"):
+        with st.spinner(f'AI generuje test ({questions_count} pytań, {test_type_ui.lower()})...'):
             files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
-            data_payload = {"question_count": questions_count}
+            data_payload = {
+                "question_count": questions_count,
+                "test_type": type_mapping[test_type_ui]
+            }
             headers = {"Authorization": f"Bearer {st.session_state.token}"}
             
             try:
@@ -109,11 +133,11 @@ else:
     if st.session_state.quiz_data:
         data = st.session_state.quiz_data
         
-        if isinstance(data, str):
-            st.warning("Stary format danych. Wygeneruj quiz ponownie.")
+        if isinstance(data, str) or (len(data) > 0 and 'type' not in data[0]):
+            st.warning("Stary format danych lub błąd. Wygeneruj quiz ponownie.")
         else:
             st.markdown("---")
-            st.header(f"📝 Sprawdź swoją wiedzę ({len(data)} pytań)")
+            st.header(f"Sprawdź swoją wiedzę ({len(data)} pytań)")
             
             with st.form("quiz_form"):
                 results = {}
@@ -124,16 +148,17 @@ else:
                     options = q.get('options', [])
                     
                     if q_type == 'single_choice':
-                        results[i] = st.radio("Wybierz:", options, key=f"q_{i}", index=None)
+                        results[i] = st.radio("Wybierz poprawną odpowiedź:", options, key=f"q_{i}", index=None)
                     elif q_type == 'multiple_choice':
-                        st.info("Wielokrotny wybór")
-                        results[i] = st.multiselect("Wybierz:", options, key=f"q_{i}")
-                    elif q_type == 'open':
-                        results[i] = st.text_area("Twoja odpowiedź:", key=f"q_{i}")
+                        st.write("Wybierz wszystkie poprawne odpowiedzi (wielokrotny wybór):")
+                        results[i] = []
+                        for opt in options:
+                            if st.checkbox(opt, key=f"chk_{i}_{opt}"):
+                                results[i].append(opt)
 
                     st.markdown("---")
 
-                submitted = st.form_submit_button("✅ Sprawdź Wyniki")
+                submitted = st.form_submit_button("Sprawdź Wyniki")
                 
                 if submitted:
                     score = 0
@@ -141,27 +166,25 @@ else:
                         user_ans = results.get(i)
                         correct = q.get('correct_answer')
                         q_type = q.get('type', 'single_choice')
+                        source_info = q.get('source', 'Brak informacji o źródle')
                         
                         st.markdown(f"**Pytanie {i+1}:** {q.get('question')}")
                         
                         if q_type == 'single_choice':
                             if user_ans == correct:
-                                st.success(f"Dobrze! ({user_ans})")
+                                st.success(f"Brawo! Poprawna odpowiedź to: {user_ans}")
                                 score += 1
                             else:
-                                st.error(f"Źle. Poprawna: {correct}")
+                                st.error(f"Błąd. Wybrano: {user_ans} | Poprawna: {correct}")
+                                st.info(f"Wskazówka: Odpowiedzi szukaj w notatkach: {source_info}")
                         
                         elif q_type == 'multiple_choice':
-                            if set(user_ans) == set(correct):
-                                st.success("Idealnie!")
+                            if set(user_ans or []) == set(correct):
+                                st.success(f"Idealnie! Poprawne odpowiedzi to: {', '.join(correct)}")
                                 score += 1
                             else:
-                                st.error(f"Nie do końca. Poprawne: {', '.join(correct)}")
-                        
-                        elif q_type == 'open':
-                            st.info(f"Twoja: {user_ans}")
-                            st.success(f"Wzorcowa: {correct}")
-                            if len(str(user_ans)) > 5: score += 1
-
-                    st.metric("Twój Wynik", f"{score} / {len(data)}")
+                                st.error(f"Nie do końca. Wybrałeś: {', '.join(user_ans or ['Brak'])} | Wymagane: {', '.join(correct)}")
+                                st.info(f"Wskazówka: Odpowiedzi szukaj w notatkach: {source_info}")
+                                
+                    st.metric("Twój Wynik Końcowy", f"{score} / {len(data)}")
                     if score == len(data): st.balloons()

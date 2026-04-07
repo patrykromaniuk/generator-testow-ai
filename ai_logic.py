@@ -15,50 +15,57 @@ def get_text_from_pdf(pdf_file):
         text += page.extract_text()
     return text
 
-def generate_test_ai(text, count=5):
+def generate_test_ai(text, count=5, test_type="mieszane"):
     if not api_key:
         return {"error": "Brak klucza API"}
     
     llm = ChatOpenAI(api_key=api_key, model_name="gpt-3.5-turbo")
     
+    if test_type == "jednokrotny":
+        type_instruction = 'Generuj WYŁĄCZNIE pytania typu "single_choice" (jednokrotny wybór).'
+    elif test_type == "wielokrotny":
+        type_instruction = 'Generuj WYŁĄCZNIE pytania typu "multiple_choice" (wielokrotny wybór).'
+    else:
+        type_instruction = 'Wymieszaj losowo typy pytań: używaj "single_choice" (jednokrotny wybór) oraz "multiple_choice" (wielokrotny wybór).'
+
     template = """
-    Jesteś profesjonalnym egzaminatorem. Na podstawie tekstu stwórz test sprawdzający wiedzę.
+    Jesteś profesjonalnym egzaminatorem. Na podstawie tekstu stwórz obiektywny test sprawdzający wiedzę.
     
-    TEKST ŹRÓDŁOWY:
+    TEKST ŹRÓDŁOWY (zawiera znaczniki stron, np. [Strona 1]):
     {text}
     
     WYMAGANIA:
     1. Stwórz DOKŁADNIE {count} pytań.
-    2. Postaraj się wymieszać typy pytań (większość jednokrotnego wyboru, ale dodaj też wielokrotny i otwarte).
-    3. Odpowiedz TYLKO czystym kodem JSON (bez ```json).
+    2. {type_instruction}
+    3. Zwróć wynik TYLKO w postaci czystego kodu JSON bez żadnych dodatkowych tekstów.
+    4. Nigdy nie dodawaj pytań otwartych.
+    5. BARDZO WAŻNE: Wewnątrz treści pytań i odpowiedzi absolutnie nie używaj znaków cudzysłowu. Zastąp je pojedynczymi apostrofami.
+    6. Zlokalizuj, z której strony pochodzi odpowiedź na dane pytanie i dodaj tę informację w polu "source".
 
-    FORMAT JSON (Lista obiektów):
+    FORMAT JSON:
     [
       {{
         "type": "single_choice",
-        "question": "Pytanie?",
+        "question": "Treść pytania jednokrotnego wyboru?",
         "options": ["A", "B", "C", "D"],
-        "correct_answer": "A"
+        "correct_answer": "A",
+        "source": "Strona 2"
       }},
       {{
         "type": "multiple_choice",
-        "question": "Wybierz wszystkie poprawne:",
-        "options": ["A", "B", "C", "D"],
-        "correct_answer": ["A", "C"]
-      }},
-      {{
-        "type": "open",
-        "question": "Pytanie otwarte?",
-        "correct_answer": "Wzorcowa odpowiedź"
+        "question": "Zaznacz wszystkie poprawne odpowiedzi:",
+        "options": ["Opcja 1", "Opcja 2", "Opcja 3", "Opcja 4"],
+        "correct_answer": ["Opcja 1", "Opcja 3"],
+        "source": "Strona 5"
       }}
     ]
     """
     
-    prompt = PromptTemplate(template=template, input_variables=["text", "count"])
+    prompt = PromptTemplate(template=template, input_variables=["text", "count", "type_instruction"])
     chain = prompt | llm
     
     try:
-        response = chain.invoke({"text": text, "count": count})
+        response = chain.invoke({"text": text, "count": count, "type_instruction": type_instruction})
         content = response.content.strip()
         
         if content.startswith("```json"):
@@ -69,4 +76,4 @@ def generate_test_ai(text, count=5):
         return json.loads(content)
         
     except Exception as e:
-        return [{"type": "open", "question": "Błąd generowania. Spróbuj ponownie.", "correct_answer": ""}]
+        return [{"type": "single_choice", "question": f"Błąd generowania AI: {str(e)}", "options": ["OK"], "correct_answer": "OK"}]
