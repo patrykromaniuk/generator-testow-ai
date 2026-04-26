@@ -84,7 +84,7 @@ async def generate_test(
             page_text = p.extract_text()
             if page_text:
                 text_with_pages += f"\n[Strona {i+1}]\n{page_text}"
-        text = text_with_pages[:15000]
+        text = text_with_pages[:100000]
         
         quiz_data = ai.generate_test_ai(text, question_count, test_type)
         

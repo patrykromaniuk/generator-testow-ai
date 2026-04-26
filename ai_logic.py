@@ -19,7 +19,7 @@ def generate_test_ai(text, count=5, test_type="mieszane"):
     if not api_key:
         return {"error": "Brak klucza API"}
     
-    llm = ChatOpenAI(api_key=api_key, model_name="gpt-3.5-turbo")
+    llm = ChatOpenAI(api_key=api_key, model_name="gpt-4o-mini")
     
     if test_type == "jednokrotny":
         type_instruction = 'Generuj WYŁĄCZNIE pytania typu "single_choice" (jednokrotny wybór).'
