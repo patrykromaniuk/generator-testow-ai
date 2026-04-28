@@ -5,17 +5,14 @@ from streamlit_javascript import st_javascript
 
 API_URL = "http://127.0.0.1:8000"
 
-st.set_page_config(page_title="Interaktywny Quiz AI", page_icon="🎓", layout="wide")
+st.set_page_config(page_title="Interaktywny Quiz AI", page_icon="", layout="wide")
 
-# Odczytanie zapisanych danych z Local Storage w przeglądarce
 saved_token = st_javascript("localStorage.getItem('token');")
 saved_username = st_javascript("localStorage.getItem('username');")
 
-# St_javascript na ułamek sekundy przed załadowaniem JS może zwrócić 0 - traktujemy to jako brak danych
 if saved_token == 0: saved_token = None
 if saved_username == 0: saved_username = None
 
-# Konfiguracja pamięci podręcznej
 if 'token' not in st.session_state: st.session_state.token = None
 if 'username' not in st.session_state: st.session_state.username = None
 if 'quiz_data' not in st.session_state: st.session_state.quiz_data = None
@@ -25,7 +22,6 @@ if saved_token and saved_token != 0 and st.session_state.token is None:
     st.session_state.token = saved_token
     if saved_username and saved_username != 0:
         st.session_state.username = saved_username
-    # Odświeżamy aplikację od razu po odzyskaniu danych, by zniknął formularz logowania
     st.rerun()
 
 def login(username, password):
@@ -34,14 +30,11 @@ def login(username, password):
         if res.status_code == 200:
             token = res.json()["access_token"]
             
-            # Zapisz do sesji Streamlit
             st.session_state.token = token
             st.session_state.username = username
             
-            # Zapisz trwale w przeglądarce (odporność na F5)
             st_javascript(f"localStorage.setItem('token', '{token}'); localStorage.setItem('username', '{username}');")
             
-            # Dajemy przeglądarce ułamek sekundy na przetworzenie JS przed przeładowaniem
             time.sleep(0.5)
             st.rerun()
         else:
@@ -61,10 +54,8 @@ def register(u, p):
         st.error(f"Błąd połączenia: {e}")
 
 def logout():
-    # Czyścimy sesję Streamlita
     st.session_state.clear()
     
-    # Odpalamy JS, który usunie tokeny i wymusi całkowity reset strony w przeglądarce
     st.components.v1.html(
         "<script>localStorage.clear(); window.parent.location.reload();</script>",
         height=0
