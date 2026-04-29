@@ -1,14 +1,13 @@
-# 🎓 Inteligentny System Generowania Testów (AI Quiz Generator)
+# Inteligentny System Generowania Testów (AI Quiz Generator)
 
-Projekt inżynierski realizujący system typu RAG (Retrieval-Augmented Generation), który automatycznie tworzy interaktywne sprawdziany wiedzy na podstawie wgranych notatek (plików PDF). Aplikacja wykorzystuje modele językowe OpenAI oraz architekturę Klient-Serwer.
+Projekt licencjacki realizujący system typu RAG (Retrieval-Augmented Generation), który automatycznie tworzy interaktywne sprawdziany wiedzy na podstawie wgranych notatek (plików PDF). Aplikacja wykorzystuje modele językowe OpenAI oraz architekturę Klient-Serwer.
 
-## 🚀 Główne Funkcjonalności
+## Główne Funkcjonalności
 
 * **Analiza Dokumentów PDF:** System przetwarza treść wykładów i notatek, wyciągając kluczowe informacje.
 * **Generowanie Pytań Hybrydowych:** AI tworzy zróżnicowany zestaw pytań:
     * Jednokrotnego wyboru (Single Choice).
     * Wielokrotnego wyboru (Multiple Choice).
-    * Pytania otwarte (Open Ended) z wzorcową odpowiedzią.
 * **Parametryzacja:** Użytkownik decyduje o długości testu (suwak od 3 do 20 pytań).
 * **Bezpieczeństwo:**
     * Rejestracja i Logowanie użytkowników.
@@ -17,21 +16,22 @@ Projekt inżynierski realizujący system typu RAG (Retrieval-Augmented Generatio
 * **Historia i Personalizacja:** Każdy użytkownik ma dostęp do swojej historii wygenerowanych testów zapisanej w bazie danych.
 * **Interaktywny Interfejs:** Sprawdzanie wiedzy w czasie rzeczywistym z natychmiastową informacją zwrotną (poprawne/błędne odpowiedzi).
 
-## 🛠️ Stack Technologiczny
+## Stack Technologiczny
 
 ### Backend (API)
 * **Python 3.10+**
 * **FastAPI:** Wydajny framework do budowy API.
 * **LangChain:** Orkiestracja logiki AI i komunikacja z LLM.
-* **OpenAI API (GPT-3.5-turbo):** Silnik generujący pytania.
+* **OpenAI API (GPT-4o-mini):** Silnik generujący pytania.
 * **SQLite:** Relacyjna baza danych (przechowywanie użytkowników i historii).
 * **Pydantic & Python-Jose:** Walidacja danych i obsługa tokenów bezpieczeństwa.
 
 ### Frontend (Interfejs)
 * **Streamlit:** Budowa interaktywnego interfejsu webowego.
 * **Requests:** Komunikacja z API Backendowym.
+* **streamlit-javascript:** Obsługa pamięci lokalnej (localStorage) do podtrzymywania sesji logowania.
 
-## ⚙️ Instalacja i Konfiguracja
+## Instalacja i Konfiguracja
 
 1.  **Sklonuj repozytorium:**
     ```bash
@@ -62,7 +62,7 @@ Projekt inżynierski realizujący system typu RAG (Retrieval-Augmented Generatio
     OPENAI_API_KEY=sk-proj-twoj-klucz-openai...
     ```
 
-## ▶️ Uruchomienie Aplikacji
+## Uruchomienie Aplikacji
 
 System składa się z dwóch niezależnych procesów (Backend i Frontend). Można je uruchomić ręcznie lub automatycznie.
 
