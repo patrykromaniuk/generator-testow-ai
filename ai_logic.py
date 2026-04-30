@@ -35,7 +35,7 @@ def generate_test_ai(text, count=5, test_type="mieszane"):
     {text}
     
     WYMAGANIA:
-    1. Stwórz DOKŁADNIE {count} pytań.
+    1. LICZBA PYTAŃ: Musisz wygenerować bezwzględnie {count} elementów w głównej tablicy JSON. Zanim zakończysz odpowiedź, upewnij się, że tablica ma dokładnie {count} obiektów. Nie generuj 10 pytań, jeśli zażądano 11.
     2. {type_instruction}
     3. Zwróć wynik TYLKO w postaci czystego kodu JSON bez żadnych dodatkowych tekstów.
     4. Nigdy nie dodawaj pytań otwartych.
